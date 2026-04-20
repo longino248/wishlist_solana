@@ -54,7 +54,7 @@ Operación	Función	Descripción
 
 Este proyecto está optimizado para ejecutarse en Solana Playground (SolPG).
 
-🧩 Paso 1: Compilación y Despliegue
+🧩 Compilación y Despliegue
 Copia el contenido de lib.rs en un proyecto de Anchor dentro de SolPG
 Abre la terminal integrada
 Ejecuta:
