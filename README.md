@@ -1,60 +1,119 @@
-# Biblioteca en Solana
+Wishlist Solana (CRUD PDA) 🛒
 
-![banner](./images/banner-biblioteca.jpg)
+Wishlist Solana es un programa descentralizado (Smart Contract) construido en la blockchain de Solana utilizando el framework Anchor. Este proyecto implementa un sistema CRUD completo que permite a los usuarios gestionar una "Lista de Deseos" personal, almacenando los productos que desean comprar y sus respectivos precios.
+🚀 Características Principales
 
-CRUD básico de un Solana Program desarrollado con Rust y Anchor desde el Solana Playground. 
+    Almacenamiento Descentralizado: Utiliza PDAs (Program Derived Addresses) para garantizar que cada usuario tenga una única cuenta vinculada a su llave pública (Wallet), manteniendo sus datos seguros y separados de otros usuarios.
 
-Puedes comenzar dándole Fork a este repositorio (abajo te explicamos como 👇), **hemos preparado un entorno de codespaces listo para que no tengas que instalar nada**, solo déjate llevar por la fluidez de los ejercicios y temas desarrollados especialmente para ti. 
+    Gestión de Memoria Eficiente: Implementa el macro InitSpace de Anchor para precalcular el tamaño de la cuenta en bytes, optimizando el pago de "renta" en la red de Solana.
 
-Asegúrate de clonar este repositorio a tu cuenta usando el botón **`Fork`**.
+    CRUD Completo: Permite crear listas, agregar productos, editar precios, leer el estado actual y eliminar registros de forma dinámica.
 
-![fork](./images/fork.png)
+    Seguridad: Todas las funciones de modificación y borrado están protegidas, verificando mediante validaciones (require!) que solo el propietario original (owner) pueda alterar su lista.
 
-## Importando el proyecto 
+🛠️ Estructura de Datos (Estado)
 
-Ya con el repositorio en tu cuenta lo siguiente que debes hacer copiar el `enlace de tu repositorio`, lo que se puede hacer directamente desdel navegador:
+El programa maneja el estado a través de dos estructuras optimizadas:
+1. La Cuenta (Wishlist)
 
-![repo](./images/repo.png)
-Posteriormente, lo uniremos con el siguiente enlace en nuestro navegador de preferencia:
+Es la cuenta PDA principal que guarda la información general y el contenedor de los datos.
 
-```url
-https://beta.solpg.io/
-```
+    owner (Pubkey): La llave pública del creador.
 
-Lo que nos dará algo parecido a:
+    nombre_lista (String): El título de la lista (Max. 40 caracteres).
 
-![url](./images/url.png)
+    productos (Vector): Un arreglo dinámico que soporta hasta 15 productos.
 
-Al pulsar enter seremos enviados al `Solana Playground` con nuestro proyecto abierto:
+2. El Dato Interno (Producto)
 
-![pg](./images/pg.png)
+El struct que define qué se guarda por cada ítem.
 
-Para guardarlo solo damos clic en el boton `import` y asignamos un nombre:
+    nombre (String): Nombre del producto (Max. 30 caracteres).
 
-![import](./images/import.png)
+    precio (u64): Precio del producto (Almacenado como número entero, ideal para representar Lamports o centavos).
 
-## Preparacion del entorno
+⚙️ Operaciones del Programa (Instrucciones)
+Operación	Función	Descripción
+CREATE (PDA)	inicializar_wishlist	Deriva la PDA del usuario y crea la cuenta base con un vector vacío.
+CREATE (Dato)	agregar_producto	Añade un nuevo Producto (Nombre y Precio) al final de la lista.
+READ	ver_wishlist	Imprime en los logs de la blockchain el contenido íntegro del vector.
+UPDATE	editar_producto	Busca un producto por su nombre y actualiza su precio.
+DELETE	eliminar_producto	Busca un producto por su nombre y lo remueve del vector, liberando espacio.
+🧪 Cómo Probar el Proyecto (Solana Playground)
 
-Primero conectaremos el entorno con la devnet, lo que tambien procederá a la creación de una wallet. Para eso daremos clic en donde dice **Not Conected**:
+Este proyecto está optimizado para ser desplegado y testeado rápidamente en Solana Playground (SolPG).
+Paso 1: Compilación y Despliegue
 
-![playground1](./images/playground1.png)
+    Copia el contenido de lib.rs en un nuevo proyecto nativo de Anchor en SolPG.
 
-Saldrá la siguiente ventana donde daremos en el botón **Continue**:
+    Abre la terminal integrada y ejecuta cargo clean para evitar problemas de caché con el IDL.
 
-![wallet](./images/wallet.png)
+    Presiona el botón Build (Icono de Martillo).
 
-Como resultado se mostrará la siguiente información:
+    Presiona el botón Deploy (Icono de Cohete) para subirlo a la Devnet.
 
-![status](./images/status.png)
+Paso 2: Script de Pruebas (TypeScript)
 
-* En verde: el estado de la conexión y el entorno al que se encuentra conectado
+Para verificar la lógica de negocio, dirígete a la carpeta tests, abre el archivo anchor.test.ts y ejecuta el siguiente flujo automatizado de pruebas usando el botón Test:
+TypeScript
 
-* En amarillo: la la dirección de la wallet conectada
+import * as anchor from "@coral-xyz/anchor";
 
-* En azul: la cantidad de tokens en la wallet
+describe("Test de Wishlist_Solana", () => {
+  const [wishlistPda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("wishlist"), pg.wallet.publicKey.toBuffer()],
+    pg.program.programId
+  );
 
-> ℹ️ ¿Quieres ver el ejemplo de un "Hola Mundo" en Solana?. Da clic aquí: 👉 [Ver Ejemplo](https://github.com/WayLearnLatam/Solana-starter-kit/tree/1fc6349ba63375a3fe223d8d56911bc64765459b/build-deploy)
+  it("1. Inicializa la lista", async () => {
+    const tx = await pg.program.methods
+      .inicializarWishlist("Mi Lista Tech")
+      .accounts({
+        wishlist: wishlistPda,
+        owner: pg.wallet.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+    console.log("   ✅ Lista creada:", tx);
+  });
 
-> ℹ️ ¿Cuentas con una Wallet de [Phantom](https://phantom.com/) que deseas importar?, Da clic aquí para ver como hacerlo: 
+  it("2. Agrega un producto", async () => {
+    const tx = await pg.program.methods
+      .agregarProducto("Laptop", new anchor.BN(1200))
+      .accounts({
+        wishlist: wishlistPda,
+        owner: pg.wallet.publicKey,
+      })
+      .rpc();
+    console.log("   ✅ Producto agregado:", tx);
+  });
 
-👉 [Como Importar una Wallet](https://github.com/WayLearnLatam/Solana-starter-kit/tree/1fc6349ba63375a3fe223d8d56911bc64765459b/import-key-a-playground)
+  it("3. Edita el precio", async () => {
+    const tx = await pg.program.methods
+      .editarProducto("Laptop", new anchor.BN(1100))
+      .accounts({
+        wishlist: wishlistPda,
+        owner: pg.wallet.publicKey,
+      })
+      .rpc();
+    console.log("   ✅ Precio actualizado:", tx);
+  });
+
+  it("4. Visualiza la lista", async () => {
+    const cuenta = await pg.program.account.wishlist.fetch(wishlistPda);
+    console.log("   📖 Productos actuales:", cuenta.productos);
+  });
+
+  it("5. Elimina el producto", async () => {
+    const tx = await pg.program.methods
+      .eliminarProducto("Laptop")
+      .accounts({
+        wishlist: wishlistPda,
+        owner: pg.wallet.publicKey,
+      })
+      .rpc();
+    console.log("   ✅ Producto eliminado:", tx);
+  });
+});
+
+Desarrollado para fines educativos y certificación en desarrollo Web3 sobre Solana.
